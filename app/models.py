@@ -3,9 +3,7 @@ from typing import Optional
 from datetime import date, datetime
 
 
-
-
-#**user model**
+# **user model**
 
 
 class CustomUser(BaseModel):
@@ -15,10 +13,11 @@ class CustomUser(BaseModel):
     is_admin: bool = False
 
     class Config:
-        
-        from_attributes = True 
 
-#**book model**
+        from_attributes = True
+
+
+# **book model**
 
 
 class Book(BaseModel):
@@ -28,16 +27,11 @@ class Book(BaseModel):
     published_date: date
 
     class Config:
-      
+
         from_attributes = True  # Enable ORM mode for compatibility
 
 
-
-
-
-
-#**BorrowRequest**
-
+# **BorrowRequest**
 
 
 class BorrowRequest(BaseModel):
@@ -50,10 +44,8 @@ class BorrowRequest(BaseModel):
         from_attributes = True
 
 
+# **BorrowLog **
 
-
-
-#**BorrowLog **
 
 class BorrowLog(BaseModel):
     user_id: str
@@ -63,11 +55,10 @@ class BorrowLog(BaseModel):
     status: str  # Accepted, Returned
 
     class Config:
-         from_attributes = True 
+        from_attributes = True
 
 
-
-
-
-
-
+class MessageRequest(BaseModel):
+    sender_id: str
+    receiver_id: str
+    message: str

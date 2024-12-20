@@ -1,5 +1,5 @@
-import datetime
 import re
+
 
 def validate_password(password: str) -> str:
     """
@@ -19,6 +19,9 @@ def validate_password(password: str) -> str:
     if re.search(r"\s", password):
         return "Password must not contain whitespace."
     return "Valid"
+
+
+
 
 
 

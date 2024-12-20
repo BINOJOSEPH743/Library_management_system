@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Application</title>
+    <style>
+        /* Basic styling for the chat */
+        #messages {
+            height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+        #message-input {
+            width: 80%;
+        }
+        #send-button {
+            width: 15%;
+        }
+    </style>
+</head>
+<body>
+    <h1>One-to-One Chat</h1>
+    
+    <div>
+        <input type="text" id="sender-id" placeholder="Your user ID">
+        <input type="text" id="receiver-id" placeholder="Receiver user ID">
+    </div>
+    
+    <div id="messages"></div>
+    
+    <div>
+        <input type="text" id="message-input" placeholder="Type your message">
+        <button id="send-button">Send</button>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.9.2/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.9.2/firebase-database.js"></script>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBDn8sxDlk_uLvhU25y_JQl73VWMK_PpDM",
+            authDomain: "library-management-syste-11e9a.firebaseapp.com",
+            databaseURL: "https://library-management-syste-11e9a-default-rtdb.asia-southeast1.firebasedatabase.app/",
+            projectId: "library-management-syste-11e9a",
+            storageBucket:"library-management-syste-11e9a.firebasestorage.app",
+            messagingSenderId: "872179419512",
+            appId: "1:872179419512:web:aee5dfb3a5723cc830e08d"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // Get DOM elements
+        const senderIdInput = document.getElementById("sender-id");
+        const receiverIdInput = document.getElementById("receiver-id");
+        const messageInput = document.getElementById("message-input");
+        const sendButton = document.getElementById("send-button");
+        const messagesDiv = document.getElementById("messages");
+
+        // Send message function
+        sendButton.addEventListener('click', () => {
+            const senderId = senderIdInput.value;
+            const receiverId = receiverIdInput.value;
+            const messageText = messageInput.value;
+
+            if (!senderId || !receiverId || !messageText) {
+                alert("Please fill in all fields.");
+                return;
+            }
+
+            // Send message via FastAPI backend
+            fetch("http://localhost:8000/send_message/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    sender_id: senderId,
+                    receiver_id: receiverId,
+                    message: messageText
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log("Message sent:", data);
+                messageInput.value = '';  // Clear the input after sending
+                loadMessages(senderId, receiverId);  // Reload messages
+            })
+            .catch(error => console.error("Error sending message:", error));
+        });
+
+        // Load messages function
+        function loadMessages(senderId, receiverId) {
+            const chatId = `${Math.min(senderId, receiverId)}_${Math.max(senderId, receiverId)}`;
+            const messagesRef = database.ref(`/chats/${chatId}/messages`);
+
+            messagesRef.on('value', snapshot => {
+                messagesDiv.innerHTML = '';  // Clear previous messages
+                const messages = snapshot.val();
+                if (messages) {
+                    for (const messageId in messages) {
+                        const message = messages[messageId];
+                        const messageElement = document.createElement("div");
+                        messageElement.textContent = `${message.sender}: ${message.text}`;
+                        messagesDiv.appendChild(messageElement);
+                    }
+                }
+            });
+        }
+
+        // Initial message load
+        document.addEventListener('DOMContentLoaded', () => {
+            const senderId = senderIdInput.value;
+            const receiverId = receiverIdInput.value;
+
+            if (senderId && receiverId) {
+                loadMessages(senderId, receiverId);  // Load messages when the page is first loaded
+            }
+        });
+
+    </script>
+</body>
+</html>

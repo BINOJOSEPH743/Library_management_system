@@ -230,7 +230,7 @@ async def filter_books_by_genre(
 
 
 
-#hepler function for converting date to date time
+#helper function for converting date to date time
 
 
 def date_to_datetime(date_obj):
