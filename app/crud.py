@@ -6,6 +6,7 @@ from app import schemas
 from datetime import datetime, date
 from .utils import  validate_password
 from datetime import datetime
+from firebase_admin import messaging
 
 
 
@@ -82,6 +83,34 @@ async def create_book(db, book: schemas.BookCreate, user_id: str):
     book_dict["id"] = str(result.inserted_id)
     return schemas.BookResponse(**book_dict)
 
+
+
+async def send_push_notification(book: dict):
+    # """
+    # Sends a push notification to all users when a book is added.
+
+    # Args:
+    #     book (dict): The book details.
+    # """
+    # Notification details
+    notification_title = "New Book Added!"
+    notification_body = f"Check out the new book '{book['title']}' by {book['author']}."
+
+    # Create a message
+    message = messaging.Message(
+        notification=messaging.Notification(
+            title=notification_title,
+            body=notification_body,
+        ),
+        topic="new_books",  # This topic can be subscribed to by users
+    )
+
+    # Send the notification
+    try:
+        response = messaging.send(message)
+        print(f"Push notification sent successfully: {response}")
+    except Exception as e:
+        print(f"Error sending push notification: {e}")
 
 
 
@@ -358,3 +387,28 @@ async def get_borrow_logs(db):
         log["return_date"] = datetime_to_date(log.get("return_date"))  # Convert return_date to date
     
     return borrow_logs
+
+
+
+
+
+
+
+
+
+
+
+
+
+async def save_message_to_firebase(firebase_db, chat_id: str, message: dict):
+    """
+    Saves a message to Firebase Realtime Database.
+
+    :param firebase_db: Firebase database reference
+    :param chat_id: The chat ID to identify the conversation.
+    :param message: The message dictionary to save.
+    :return: The message reference key.
+    """
+    firebase_ref = firebase_db.reference(f"/chats/{chat_id}/messages")
+    new_message_ref = firebase_ref.push(message)
+    return new_message_ref.key

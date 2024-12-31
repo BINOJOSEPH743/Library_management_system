@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Chat</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f8ab8d;  
+            color: #333
+        }
+        h1 {
+            text-align: center;
+            color: #007bff;  
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 2px solid #ec1313;
+            margin-bottom: 10px;
+            background-color: #d6cef5;
+        }
+        li {
+            padding: 5px 10px;
+            border-bottom: 1px solid #eee;
+        }
+        input {
+            width: calc(100% - 60px);
+            padding: 10px;
+            margin-right: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #d6cfcf;  
+        }
+    </style>
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBDn8sxDlk_uLvhU25y_JQl73VWMK_PpDM",
+            authDomain: "library-management-syste-11e9a.firebaseapp.com",
+            databaseURL: "https://library-management-syste-11e9a-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "library-management-syste-11e9a",
+            storageBucket: "library-management-syste-11e9a.firebasestorage.app",
+            messagingSenderId: "872179419512",
+            appId: "1:872179419512:web:aee5dfb3a5723cc830e08d"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // Room and message references
+        const roomId = "chat-room-1";
+        const messagesRef = db.ref("messages/" + roomId);
+
+        // WebSocket connection
+        let socket = null;
+
+        function connectWebSocket() {
+            socket = new WebSocket(`ws://localhost:8000/ws/chat/${roomId}`);
+
+            socket.onopen = () => {
+                console.log("WebSocket connection established.");
+                document.getElementById("send-button").disabled = false;
+            };
+
+            socket.onmessage = (event) => {
+                console.log("Message from WebSocket:", event.data);
+                displayMessage("WebSocket", event.data);
+            };
+
+            socket.onclose = (event) => {
+                console.warn("WebSocket connection closed:", event.reason);
+                document.getElementById("send-button").disabled = true;
+            };
+
+            socket.onerror = (error) => {
+                console.error("WebSocket error occurred:", error);
+            };
+        }
+
+        function sendMessage() {
+            const messageInput = document.getElementById("message-input");
+            const user_id = "user_123";
+            const content = messageInput.value.trim();
+
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                console.error("WebSocket is not connected.");
+                return;
+            }
+
+            if (!content) {
+                console.error("Cannot send an empty message.");
+                return;
+            }
+
+            const message = { user_id, content };
+
+            // Send message via WebSocket
+            socket.send(JSON.stringify(message));
+
+            // Save message to Firebase
+            messagesRef.push().set({
+                user_id,
+                content,
+                timestamp: Date.now()
+            });
+
+            messageInput.value = "";
+        }
+
+        function displayMessage(user, content) {
+            const messages = document.getElementById("messages");
+            const messageElement = document.createElement("li");
+            messageElement.textContent = `${user}: ${content}`;
+            messages.appendChild(messageElement);
+        }
+
+        // Real-time listener for Firebase messages
+        messagesRef.on("child_added", (snapshot) => {
+            const message = snapshot.val();
+            displayMessage(message.user_id, message.content);
+        });
+
+        window.onload = () => {
+            document.getElementById("send-button").disabled = true;
+            connectWebSocket();
+        };
+    </script>
+</head>
+<body>
+    <h1>LIBRARY CHAT ROOM</h1>
+    <ul id="messages"></ul>
+    <input id="message-input" type="text" placeholder="Type a message">
+    <button id="send-button" onclick="sendMessage()">Send</button>
+</body>
+</html> 
+
+
+
+
+
+
+
+
+
+

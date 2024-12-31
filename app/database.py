@@ -1,45 +1,29 @@
 import firebase_admin
 from motor.motor_asyncio import AsyncIOMotorClient
-from firebase_admin import credentials, firestore
+from firebase_admin import credentials, db as firebase_db,messaging
 
-
-
-
-# MongoDB connection details
-MONGO_URL = "mongodb://localhost:27017"  # Adjust this based on your setup
+# MongoDB Connection Details
+MONGO_URL = "mongodb://localhost:27017"
 DATABASE_NAME = "fastapilibrary"
 
-# Create the MongoDB client
-client = AsyncIOMotorClient(MONGO_URL)
-db_mongo = client.fastapilibrary
-# Access the database
-db = client[DATABASE_NAME]
-users_collection = db.users 
+# Create the MongoDB Client
+mongo_client = AsyncIOMotorClient(MONGO_URL)
+db = mongo_client[DATABASE_NAME]  # Access the MongoDB database
+users_collection = db.users  # Access the users collection
 
-# Dependency to get the database
+# Dependency to get the MongoDB database
 def get_db():
     return db
 
 
+# Firebase Admin SDK Configuration
+FIREBASE_CREDENTIALS_PATH = "/home/bino-tech/Downloads/library-management-syste-11e9a-firebase-adminsdk-xm2rs-bfe3fbbf10.json"
 
-
-# # Path to Firebase Admin SDK private key
-# FIREBASE_CREDENTIALS_PATH = "/home/bino-tech/Test/demo/library-management-syste-11e9a-firebase-adminsdk-xm2rs-7972e40a94.json"
-
-# # Initialize Firebase Admin SDK
-# cred = credentials.Certificate(FIREBASE_CREDENTIALS_PATH)
-# firebase_admin.initialize_app(cred)
-
-# # Firestore database client
-# firestore_db = firestore.client()
-
-# # Dependency to get the Firestore client
-# def get_firestore_db():
-#     return firestore_db
-
-#Initialize Firebase Admin SDK
-cred = credentials.Certificate("/home/bino-tech/Downloads/library-management-syste-11e9a-firebase-adminsdk-xm2rs-d039b2b2c3.json")
+# Initialize Firebase Admin SDK
+cred = credentials.Certificate(FIREBASE_CREDENTIALS_PATH)
 firebase_admin.initialize_app(cred, {
     'databaseURL': 'https://library-management-syste-11e9a-default-rtdb.asia-southeast1.firebasedatabase.app'
 })
 
+# Firebase Realtime Database Reference
+firebase_ref = firebase_db.reference('/messages')

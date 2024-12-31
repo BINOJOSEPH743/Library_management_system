@@ -1,26 +1,50 @@
-from typing import List, Optional
-import uuid
-from fastapi import FastAPI, Depends, HTTPException, Query
+import json
+from typing import Dict, List, Optional
+from fastapi import FastAPI, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.staticfiles import StaticFiles
 from app.database import db, get_db,users_collection
 from app import crud, schemas
 from app.models import MessageRequest
 from app.schemas import BorrowLogResponse, BookResponse
 import jwt
 from passlib.context import CryptContext
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from app.crud import get_borrow_logs
 from fastapi import FastAPI, HTTPException
 from fastapi import FastAPI, Request, HTTPException
-
+from app.database import  get_db, users_collection, firebase_ref
+from app.database import  firebase_db
+from fastapi.middleware.cors import CORSMiddleware 
 
 
 app = FastAPI()
 
 
+
+
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+
+# CORS configuration for frontend access
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all domains or specify your frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to the FastAPI app!"}
+    return FileResponse("static/index.html")
+
+# @app.get("/")
+# def read_root():
+#     return {"message": "Welcome to the FastAPI app!"}
 
 
 # OAuth2 scheme for token authentication
@@ -292,56 +316,83 @@ async def view_borrow_logs(db=Depends(get_db)):
 
 
 
+messages_ref = firebase_db.reference('/messages')  
 
-# Send a message
-@app.post("/send_message/")
-async def send_message(message: MessageRequest):
-    # Validate sender and receiver exist in MongoDB
-    sender = users_collection.find_one({"username": message.sender_id})
-    receiver = users_collection.find_one({"username": message.receiver_id})
-    
-    if not sender:
-        raise HTTPException(status_code=404, detail="Sender not found")
-    if not receiver:
-        raise HTTPException(status_code=404, detail="Receiver not found")
 
-    # Generate chat ID
-    chat_id = f"{min(message.sender_id, message.receiver_id)}_{max(message.sender_id, message.receiver_id)}"
+# @app.websocket("/ws/chat/{room_id}")
+# async def websocket_endpoint(websocket: WebSocket, room_id: str):
+#     # Accept WebSocket connection
+#     await websocket.accept()
 
-    # Reference Firebase Realtime Database
-    firebase_ref = db.reference(f"/chats/{chat_id}/messages")
+#     try:
+#         while True:
+#             data = await websocket.receive_text()
+#             message_data = json.loads(data)
 
-    # Prepare message with timestamp
-    timestamp = datetime.utcnow().isoformat()
-    new_message = {
-        "sender": message.sender_id,
-        "receiver": message.receiver_id,
-        "text": message.message,
-        "timestamp": timestamp
-    }
+#             user_id = message_data["user_id"]
+#             content = message_data["content"]
 
-    # Push the message to Firebase
-    new_message_ref = firebase_ref.push(new_message)
+#             # Create a message object to save in Firebase with timestamp
+#             message = {
+#                 "user_id": user_id,
+#                 "content": content,
+#                 "timestamp": datetime.utcnow().isoformat()  # Use Python's datetime for server-side timestamp
+#             }
 
-    return {"status": "Message sent", "message_id": new_message_ref.key}
+#             # Save message to Firebase under the room ID
+#             messages_ref.child(room_id).push(message)
 
-# Get messages for a specific chat
-@app.get("/get_messages/{chat_id}")
-async def get_messages(chat_id: str):
-    # Reference Firebase Realtime Database for the chat ID
-    firebase_ref = db.reference(f"/chats/{chat_id}/messages")
-    messages = firebase_ref.get()
+#             # Send back the message for real-time updates
+#             await websocket.send_text(f"Message sent: {content}")
 
-    if messages:
-        formatted_messages = [
-            {
-                "sender": msg["sender"],
-                "receiver": msg["receiver"],
-                "text": msg["text"],
-                "timestamp": msg["timestamp"]
-            }
-            for msg in messages.values()
-        ]
-        return {"messages": formatted_messages}
-    else:
-        return {"messages": []}
+#     except WebSocketDisconnect:
+#         print(f"Client disconnected from room: {room_id}")
+
+
+
+
+
+
+
+# @app.websocket("/ws/chat/{room_id}")
+# async def websocket_endpoint(websocket: WebSocket, room_id: str):
+#     await websocket.accept()
+#     try:
+#         while True:
+#             data = await websocket.receive_text()
+#             await websocket.send_text(f"Message from {room_id}: {data}")
+#     except WebSocketDisconnect:
+#         print(f"Client disconnected from room {room_id}")
+
+
+
+
+#Store active WebSocket connections by user_id
+active_connections: Dict[str, WebSocket] = {}
+
+@app.websocket("/ws/chat/{room_id}/{user_id}")
+async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
+    try:
+        user = await users_collection.find_one({"user_id": user_id})
+        if not user:
+            await websocket.send_text("User not found. Disconnecting.")
+            await websocket.close()
+            return
+
+        await websocket.accept()
+        active_connections[user_id] = websocket
+
+        while True:
+            data = await websocket.receive_text()
+            # Dynamic receiver logic here
+            receiver_id = "user_456"
+
+            if receiver_id in active_connections:
+                await active_connections[receiver_id].send_text(f"Message from {user_id}: {data}")
+
+    except WebSocketDisconnect:
+        if user_id in active_connections:
+            del active_connections[user_id]
+    except Exception as e:
+        print(f"Error: {e}")
+        await websocket.close()

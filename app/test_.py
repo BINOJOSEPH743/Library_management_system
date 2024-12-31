@@ -299,13 +299,6 @@ def test_create_borrow_request(client):
 
 
 
-
-
-
-
-
-
-
 #borrow log
 
 def test_view_borrow_logs(client):
